@@ -1,5 +1,6 @@
 //--- PDP-core ---
-//use std::net::IpAddr;
+#![warn(clippy::pedantic)]
+use std::collections::HashMap;
 
 // --- main struct Subject ---
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -18,7 +19,7 @@ pub struct AccessRequest {
 }
 
 // --- Role ---
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum Role {
     Admin,
     Contractor,
@@ -60,13 +61,14 @@ pub struct RequestContext {
     */
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RiskSignal {
     Normal,
     RepeatedFailures { count: u32 }
 }
 
 // --- Sensitivity to a specific resource ---
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum Sensitivity {
     Public,
     Internal,
@@ -74,7 +76,7 @@ pub enum Sensitivity {
 }
 
 // --- Subjects actions ---
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
 pub enum ActionKind {
     Read,
     Write,
@@ -115,7 +117,7 @@ impl DenyReason {
     }
 }
 
-// --- Honeypod ---
+// --- Honeypot ---
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Honeypot {
     pub id: String,
@@ -123,23 +125,23 @@ pub struct Honeypot {
     pub person: String,
 }
 
-/* --- SOC team monitoring
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SocAlertLevel {
-    Monitor,
-    CriticalTrap,
-}*/
-
 // who is allowed what + TTL by role.
+#[derive(Debug)]
 pub struct Policy {
-    // i think hashmap
+    rules: HashMap<(Role, Sensitivity, ActionKind), u64>,
 }
 
-
+// hardcoded policy for tests, move to .toml in future
 impl Policy {
-    /// hardcoded policy for tests, move to .toml in future
     pub fn demo() -> Self {
-        // ...
+        Self {
+            rules: HashMap::from([
+                ((Role::Employee, Sensitivity::Internal, ActionKind::Read), 500),
+                ((Role::Admin, Sensitivity::Critical, ActionKind::Read), 500),  
+                ((Role::Contractor, Sensitivity::Critical, ActionKind::Read), 250),
+                ((Role::ServiceAccount, Sensitivity::Critical, ActionKind::Read), 300),
+            ]),
+        }
     }
 }
 
