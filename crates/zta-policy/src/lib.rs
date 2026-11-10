@@ -200,5 +200,5 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_works() {}
+    fn it_works() {} // js test
 }
