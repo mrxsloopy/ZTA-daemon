@@ -1,6 +1,6 @@
 //--- PDP-core ---
 #![warn(clippy::pedantic)]
-use std::{collections::HashMap, future::PollFn};
+use std::collections::HashMap;
 
 // --- main struct Subject ---
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -108,6 +108,7 @@ pub enum DenyReason {
 }
 
 impl DenyReason {
+    #[must_use]
     pub fn message(&self) -> &'static str {
         match self {
             DenyReason::SuspiciousActivity => "Suspicious activity!",
@@ -135,6 +136,7 @@ pub struct Policy {
 
 // hardcoded policy for tests, move to .toml in future
 impl Policy {
+    #[must_use]
     pub fn demo() -> Self {
         Self {
             rules: HashMap::from([
@@ -150,6 +152,7 @@ impl Policy {
 }
 
 // Main function
+#[must_use]
 pub fn evaluate(request: &AccessRequest, policy: &Policy) -> Decision {
     // --- Check Certificate ---
     match &request.subject.cert {
@@ -157,10 +160,9 @@ pub fn evaluate(request: &AccessRequest, policy: &Policy) -> Decision {
             honeypot: policy.honeypot.clone(),
             reason: DenyReason::InvalidCert,
         }, // if "return" is missing, there'll be mismatched types
-        CertStatus::Expired { .. } => return Decision::Deny {
+        CertStatus::Expired { .. } | CertStatus::Unknown => return Decision::Deny {
             reason: DenyReason::InvalidCert,
         },
-        CertStatus::Unknown => return Decision::Deny { reason: DenyReason::InvalidCert },
         CertStatus::Valid { .. } => {/* identity ok, go to risk check */},
     }
 
@@ -173,8 +175,7 @@ pub fn evaluate(request: &AccessRequest, policy: &Policy) -> Decision {
             };
         }
         // there were attempts, but they < max_failed_attempts
-        RiskSignal::RepeatedFailures { .. } => {}
-        RiskSignal::Normal => {}
+        RiskSignal::RepeatedFailures { .. } | RiskSignal::Normal => {}
     }
 
     // tuples from Policy rules (HashMap)
@@ -194,11 +195,45 @@ pub fn evaluate(request: &AccessRequest, policy: &Policy) -> Decision {
     }
 }
 
-// --- Tests ---
+// --- tests ---
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    // builders
+    fn policy() -> Policy { Policy::demo() }
+    fn make_request(  // parameter declaration
+        role: Role,
+        sensitivity: Sensitivity,
+        action: ActionKind,
+        risk: RiskSignal,
+    ) -> AccessRequest {
+        AccessRequest {
+            subject: Subject {
+                id: "0x".to_string(),
+                role,
+                cert: CertStatus::Valid {
+                    expires_in_secs: 300,
+                    fingerprint: "aa:bb:cc:...".to_string(),
+                    trusted_ca: "ZTA Demo Root CA".to_string(),
+                }
+            }, 
+            resource: Resource { name: "res".to_string(), sensitivity },
+            context: RequestContext { action, request_id: "req-01".to_string(), risk_signal: risk },
+        }
+    }
+
     #[test]
-    fn it_works() {} // js test
+    fn allow_employee_reading_internal_resource() {
+        let req = make_request(
+            Role::Employee,
+            Sensitivity::Internal,
+            ActionKind::Read,
+            RiskSignal::Normal,
+        );
+        assert_eq!(
+            evaluate(&req, &policy()), 
+            Decision::Allow { ttl_secs: 300, auth_level: AuthLevel::SingleFactor }
+        );
+    }
 }
