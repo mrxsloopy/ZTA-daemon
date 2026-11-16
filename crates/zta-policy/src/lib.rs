@@ -195,13 +195,15 @@ pub fn evaluate(request: &AccessRequest, policy: &Policy) -> Decision {
     }
 }
 
-// --- tests ---
+// --- Tests ---
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // builders
+    // --- Builders ---
+    // Policy with rules
     fn policy() -> Policy { Policy::demo() }
+    // Default request
     fn make_request(  // parameter declaration
         role: Role,
         sensitivity: Sensitivity,
@@ -222,7 +224,26 @@ mod tests {
             context: RequestContext { action, request_id: "req-01".to_string(), risk_signal: risk },
         }
     }
+    // Copy of make request, but cert - parametr
+    fn request_with_cert(cert: CertStatus) -> AccessRequest {
+        AccessRequest {
+            subject: Subject { id: "0x".to_string(), role: Role::Employee, cert },
+            resource: Resource { name: "res".to_string(), sensitivity: Sensitivity::Internal },
+            context: RequestContext {
+                action: ActionKind::Read,
+                request_id: "req-01".to_string(),
+                risk_signal: RiskSignal::Normal,
+            },
+        }
+    }
+    // Custom checker, for certs
+    fn assert_cert_decision(cert: CertStatus, expected: &Decision) {
+        let req = request_with_cert(cert);
+        assert_eq!(evaluate(&req, &policy()), expected.clone());
+    }
 
+    /* --------------------------------------------- */
+    
     #[test]
     fn allow_employee_reading_internal_resource() {
         let req = make_request(
@@ -234,6 +255,147 @@ mod tests {
         assert_eq!(
             evaluate(&req, &policy()), 
             Decision::Allow { ttl_secs: 300, auth_level: AuthLevel::SingleFactor }
+        );
+    }
+
+    #[test]
+    fn deny_employee_reading_critical_resource() {
+        let req = make_request(
+            Role::Employee,
+            Sensitivity::Critical,
+            ActionKind::Read,
+            RiskSignal::Normal
+        );
+        assert_eq!(
+            evaluate(&req, &policy()),
+            Decision::Deny { reason: DenyReason::RoleActionMismatch }  
+        );
+    }
+
+    #[test]
+    fn redirect_revoked_cert() {
+        assert_cert_decision(
+            CertStatus::Revoked { revoked_at: 1_000_000_000, reason: "key compromised".to_string() },
+            &Decision::Redirect { honeypot: policy().honeypot.clone(), reason: DenyReason::InvalidCert },
+        );
+    }
+
+    #[test]
+    fn allow_admin_reading_critical_resource() {
+        let req = make_request(
+            Role::Admin,
+            Sensitivity::Critical,
+            ActionKind::Read,
+            RiskSignal::Normal,
+        );
+        assert_eq!(
+            evaluate(&req, &policy()),
+            Decision::Allow { ttl_secs: 120, auth_level: AuthLevel::SingleFactor }
+        );
+    }
+
+    #[test]
+    fn redirect_contractor_if_many_login_attempts() {
+        let req = make_request(
+            Role::Contractor,
+            Sensitivity::Critical,
+            ActionKind::Read,
+            RiskSignal::RepeatedFailures { count: 4 }
+        );
+        assert_eq!(
+            evaluate(&req, &policy()),
+            Decision::Redirect { honeypot: policy().honeypot.clone(), reason: DenyReason::SuspiciousActivity }
+        );
+    }
+
+    #[test]
+    fn deny_contractor_reading_critical_resource() {
+        let req = make_request(
+            Role::Contractor,
+            Sensitivity::Critical,
+            ActionKind::Read,
+            RiskSignal::Normal,
+        );
+        assert_eq!(
+            evaluate(&req, &policy()),
+            Decision::Deny { reason: DenyReason::RoleActionMismatch }
+        );
+    }
+
+    #[test]
+    fn allow_contractor_reading_public_resource() {
+        let req = make_request(
+            Role::Contractor,
+            Sensitivity::Public,
+            ActionKind::Read,
+            RiskSignal::Normal,
+        );
+        assert_eq!(
+            evaluate(&req, &policy()),
+            Decision::Allow { ttl_secs: 250, auth_level: AuthLevel::SingleFactor }
+        );
+    }
+
+    #[test]
+    fn deny_expired_certificate() {
+        assert_cert_decision(
+            CertStatus::Expired { expired_at: 1_000_000_000, reason: "expired cert".to_string() },
+            &Decision::Deny { reason: DenyReason::InvalidCert }
+        );
+    }
+
+    #[test]
+    fn deny_unknown_certificate() {
+        assert_cert_decision(
+            CertStatus::Unknown,
+            &Decision::Deny { reason: DenyReason::InvalidCert }
+        );
+    }
+
+    #[test]
+    fn allow_serviceaccount_read_critical_resource() {
+        let req = make_request(
+            Role::ServiceAccount,
+            Sensitivity::Critical,
+            ActionKind::Read,
+            RiskSignal::Normal,
+        );
+        assert_eq!(
+            evaluate(&req, &policy()),
+            Decision::Allow { ttl_secs: 200, auth_level: AuthLevel::SingleFactor }
+        );
+    }
+
+    #[test]
+    fn allow_contractor_if_not_many_login_attempts() {
+        let req = make_request(
+            Role::Contractor,
+            Sensitivity::Public,
+            ActionKind::Read,
+            RiskSignal::RepeatedFailures { count: 2 },
+        );
+        assert_eq!(
+            evaluate(&req, &policy()),
+            Decision::Allow { ttl_secs: 250, auth_level: AuthLevel::SingleFactor }
+        );
+    }
+
+    #[test]
+    fn redirect_revoked_cert_before_risk_check() {
+        let req = make_request(    // the same factory, but cert default (valid)
+            Role::Contractor,
+            Sensitivity::Critical,
+            ActionKind::Read,
+            RiskSignal::RepeatedFailures { count: 5 },
+        );
+        // manual substituation (sample)
+        let req = AccessRequest {
+            subject: Subject { cert: CertStatus::Revoked { revoked_at: 1_000_000_000, reason: "key compromised".to_string() }, ..req.subject },
+            ..req
+        };
+        assert_eq!(
+            evaluate(&req, &policy()),
+            Decision::Redirect { honeypot: policy().honeypot.clone(), reason: DenyReason::InvalidCert }
         );
     }
 }
