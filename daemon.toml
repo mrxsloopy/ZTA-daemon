@@ -1,0 +1,40 @@
+# --- Config with Policy for ZTA PDP ---
+
+max_failed_attempts = 3
+
+[honeypot]
+id = "hp-01"
+fake_address = "https://zta.admin-panel"
+persona = "Admin"
+
+# --- Permissible employee rights ---
+[[rules]]
+role = "employee"
+sensitivity = "internal"
+action = "read"
+ttl = 300
+# soon, new types of action and other ...
+
+# --- Permissible admin rights ---
+[[rules]]
+role = "admin"
+sensitivity = "critical"
+action = "read"
+ttl = 120
+# soon ...
+
+# --- Permissible contractor rights ---
+[[rules]]
+role = "contractor"
+sensitivity = "public"
+action = "read"
+ttl = 250
+# soon ...
+
+# --- Permissible service account rights ---
+[[rules]]
+role = "serviceaccount"
+sensitivity = "critical"
+action = "read"
+ttl = 200
+# soon ...

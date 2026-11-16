@@ -1,2 +1,3 @@
-    Checking zta-policy v0.1.0 (/home/mrxsloopy/zta/crates/zta-policy)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
+    Checking serde v1.0.229
+    Checking zta-daemon v0.1.0 (/home/mrxsloopy/zta/crates/zta-daemon)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.30s
