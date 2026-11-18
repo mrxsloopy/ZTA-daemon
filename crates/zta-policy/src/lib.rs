@@ -2,6 +2,8 @@
 #![warn(clippy::pedantic)]
 use std::collections::HashMap;
 
+use serde::Deserialize;
+
 // --- main struct Subject ---
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Subject {
@@ -19,7 +21,8 @@ pub struct AccessRequest {
 }
 
 // --- Role ---
-#[derive(Debug, Clone, PartialEq, Hash, Eq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]  // "employee" -> Role::Employee
 pub enum Role {
     Admin,
     Contractor,
@@ -68,7 +71,8 @@ pub enum RiskSignal {
 }
 
 // --- Sensitivity to a specific resource ---
-#[derive(Debug, Clone, PartialEq, Hash, Eq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Sensitivity {
     Public,
     Internal,
@@ -76,7 +80,8 @@ pub enum Sensitivity {
 }
 
 // --- Subjects actions ---
-#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum ActionKind {
     Read,
     Write,
@@ -119,11 +124,11 @@ impl DenyReason {
 }
 
 // --- Honeypot ---
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct Honeypot {
-    pub id: &'static str,
-    pub fake_address: &'static str,
-    pub persona: &'static str,
+    pub id: String,
+    pub fake_address: String,
+    pub persona: String,
 }
 
 // who is allowed what + TTL by role.
@@ -145,7 +150,7 @@ impl Policy {
                 ((Role::Contractor, Sensitivity::Public, ActionKind::Read), 250),
                 ((Role::ServiceAccount, Sensitivity::Critical, ActionKind::Read), 200),
             ]),
-            honeypot: Honeypot { id: "hp-01", fake_address: "https://zta.admin-panel", persona: "Admin" },
+            honeypot: Honeypot { id: "hp-01".to_string(), fake_address: "https://zta.admin-panel".to_string(), persona: "Admin".to_string() },
             max_failed_attempts: 3,
         }
     }

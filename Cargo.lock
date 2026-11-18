@@ -278,3 +278,6 @@ dependencies = [
 [[package]]
 name = "zta-policy"
 version = "0.1.0"
+dependencies = [
+ "serde",
+]
