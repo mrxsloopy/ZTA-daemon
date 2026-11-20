@@ -142,6 +142,13 @@ pub struct Policy {
 // hardcoded policy for tests, move to .toml in future
 impl Policy {
     #[must_use]
+    pub fn new(
+        rules: HashMap<(Role, Sensitivity, ActionKind), u64>,
+        honeypot: Honeypot,
+        max_failed_attempts: u32,
+    ) -> Self { Self { rules, honeypot, max_failed_attempts } }
+    
+    #[must_use]
     pub fn demo() -> Self {
         Self {
             rules: HashMap::from([
