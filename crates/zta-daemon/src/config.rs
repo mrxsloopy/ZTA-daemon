@@ -2,6 +2,7 @@
 use zta_policy::{Policy, Role, Sensitivity, ActionKind, Honeypot};
 use serde::Deserialize;
 use std::{collections::HashMap, fs};
+use std::path::Path;
 
 // --- Config structures ---
 #[derive(Debug, Deserialize)]
@@ -48,8 +49,8 @@ impl From<toml::de::Error> for ConfigError {
  
 // --- Loading from file ---
 #[allow(dead_code)]
-pub fn load_policy(path: &str) -> Result<Policy, ConfigError> {
-    let content: String = fs::read_to_string(path)?;
+pub fn load_policy(path: impl AsRef<Path>) -> Result<Policy, ConfigError> {
+    let content = fs::read_to_string(path.as_ref())?;
     let config: PolicyConfig = toml::from_str(&content)?;
     Ok(config.into())
 }
