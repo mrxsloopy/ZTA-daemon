@@ -1,7 +1,6 @@
 //--- PDP-core ---
 #![warn(clippy::pedantic)]
 use std::collections::HashMap;
-
 use serde::Deserialize;
 
 // --- main struct Subject ---

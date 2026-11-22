@@ -1,0 +1,2 @@
+# crl.txt — revoked certificates (SHA-256 fingerprint)
+2E:86:41:B3:2C:89:F8:82:94:39:AB:E5:92:4F:C9:41:F4:DB:BD:F2:BC:CD:57:F9:B7:FB:0D:76:C9:5C:EF:4E

@@ -2,7 +2,6 @@
 mod config;
 use clap::Parser;
 use std::path::PathBuf;
-
 use crate::config::load_policy;
 
 #[derive(Parser, Debug)]
